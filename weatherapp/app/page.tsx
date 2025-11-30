@@ -4,13 +4,43 @@ import React, { useState, useEffect } from "react";
 import { getUserId } from "@/lib/getUserId";
 import axios from "axios";
 
+interface HourData {
+  time: string;
+  temp_c: number;
+  temp_f: number;
+  condition: {
+    icon: string;
+    text: string;
+  };
+}
+
+interface ForecastDay {
+  date: string;
+  day: {
+    maxtemp_c: number;
+    mintemp_c: number;
+    maxtemp_f: number;
+    mintemp_f: number;
+    condition: {
+      icon: string;
+      text: string;
+    };
+  };
+  hour: HourData[];
+}
+
 interface WeatherData {
-  temperature: number;
+  temperature_c: number;
+  temperature_f: number;
   conditionText: string;
   conditionIcon: string;
-  feelsLike: number;
+  feelsLike_c: number;
+  feelsLike_f: number;
   humidity: number;
-  windSpeed: number;
+  windSpeed_kph: number;
+  windSpeed_mph: number;
+  forecast: ForecastDay[];
+  hourlyForecast: HourData[];
 }
 
 interface SavedCity {
@@ -26,7 +56,22 @@ export default function HomePage() {
   const [savedCities, setSavedCities] = useState<SavedCity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [units, setUnits] = useState<'celsius' | 'fahrenheit'>('celsius');
   const [index, setIndex] = useState(0);
+
+  // Effect to manage unit persistence in localStorage
+  useEffect(() => {
+    const savedUnits = localStorage.getItem('weather-app-units') as 'celsius' | 'fahrenheit' | null;
+    if (savedUnits) {
+      setUnits(savedUnits);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (units) {
+      localStorage.setItem('weather-app-units', units);
+    }
+  }, [units]);
 
   useEffect(() => {
     const id = getUserId();
@@ -97,19 +142,46 @@ export default function HomePage() {
       try {
         // Use lat/lon for current location if available, otherwise use city name
         const query = city.lat && city.lon ? `${city.lat},${city.lon}` : city.name;
-        const response = await axios.get(`/api/weather?q=${query}`);
+        // Request 4 days of forecast data (today + next 3 days)
+        const response = await axios.get(`/api/weather?q=${query}&days=4`);
 
-        const { temp_c, condition, feelslike_c, humidity, wind_kph } = response.data.current;
+        // Safely destructure and provide fallbacks
+        const { current, forecast } = response.data;
+
+        if (!current || !forecast) {
+          throw new Error("Invalid data structure from weather API");
+        }
+
+        const { temp_c, temp_f, condition, feelslike_c, feelslike_f, humidity, wind_kph, wind_mph, last_updated_epoch } = current;
+
+        // Combine today's upcoming hours with tomorrow's hours for a full 24h forecast
+        const todaysHours = forecast.forecastday[0]?.hour || [];
+        const tomorrowsHours = forecast.forecastday[1]?.hour || [];
+
+        const upcomingHoursToday = todaysHours.filter(hour => {
+          const hourEpoch = new Date(hour.time.replace(/-/g, '/')).getTime() / 1000;
+          return hourEpoch > last_updated_epoch;
+        });
+
+        const full24HourForecast = [...upcomingHoursToday, ...tomorrowsHours].slice(0, 24);
+
+        // Keep the original forecast structure for the 3-day view
+        const processedForecast = forecast.forecastday ?? [];
 
         setWeatherData((prev) => ({
           ...prev,
           [city._id]: {
-            temperature: temp_c,
+            temperature_c: temp_c,
+            temperature_f: temp_f,
             conditionText: condition.text,
             conditionIcon: condition.icon,
-            feelsLike: feelslike_c,
+            feelsLike_c: feelslike_c,
+            feelsLike_f: feelslike_f,
             humidity: humidity,
-            windSpeed: wind_kph,
+            windSpeed_kph: wind_kph,
+            windSpeed_mph: wind_mph,
+            forecast: processedForecast,
+            hourlyForecast: full24HourForecast,
           },
         }));
       } catch (err) {
@@ -119,7 +191,7 @@ export default function HomePage() {
     };
 
     fetchWeatherForCity();
-  }, [index, savedCities, weatherData]);
+  }, [index, savedCities]);
 
   const handleNext = () => {
     if (savedCities.length === 0) return;
@@ -133,12 +205,28 @@ export default function HomePage() {
 
   return (
     <main className="flex flex-col items-center justify-center p-6 pt-20">
-      <div className="bg-white shadow-xl rounded-2xl w-full max-w-md p-8 text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Weather</h1>
+      <div className="bg-white shadow-xl rounded-2xl w-full max-w-md md:max-w-2xl p-6 md:p-8 text-center">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Weather</h1>
+          <div className="flex items-center border border-gray-300 rounded-full p-1 text-sm">
+            <button
+              onClick={() => setUnits('celsius')}
+              className={`px-3 py-1 rounded-full transition-colors ${units === 'celsius' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+            >
+              °C
+            </button>
+            <button
+              onClick={() => setUnits('fahrenheit')}
+              className={`px-3 py-1 rounded-full transition-colors ${units === 'fahrenheit' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+            >
+              °F
+            </button>
+          </div>
+        </div>
         {isLoading ? (
           <p>Loading locations...</p>
         ) : savedCities.length > 0 ? (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <button onClick={handlePrev} className="text-2xl font-bold text-blue-500 hover:text-blue-700 transition">⬅</button>
             {(() => {
               const currentCityId = savedCities[index]._id;
@@ -153,7 +241,7 @@ export default function HomePage() {
               }
 
               return (
-                <div className="flex flex-col items-center w-48">
+                <div className="flex flex-col items-center flex-1 mx-4 min-w-0">
                   <div className="flex items-center justify-center gap-x-2 w-full min-h-[56px]">
                     {savedCities[index]._id === "current-location" && (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-gray-500 flex-shrink-0">
@@ -163,13 +251,55 @@ export default function HomePage() {
                     )}
                     <h2 className="text-2xl font-semibold text-gray-800 break-words">{savedCities[index].name}</h2>
                   </div>
-                  <img src={currentWeatherData.conditionIcon} alt={currentWeatherData.conditionText} className="w-16 h-16" />
-                  <p className="text-gray-600 -mt-2">{currentWeatherData.conditionText}</p>
-                  <p className="text-6xl font-bold text-blue-600 mt-2">{Math.round(currentWeatherData.temperature)}°C</p>
-                  <div className="text-xs text-gray-500 mt-4 grid grid-cols-3 gap-x-4">
-                    <p>Feels like: {Math.round(currentWeatherData.feelsLike)}°</p>
-                    <p>Humidity: {currentWeatherData.humidity}%</p>
-                    <p>Wind: {Math.round(currentWeatherData.windSpeed)} kph</p>
+                  <div className="w-full grid grid-cols-1 md:grid-cols-2 md:gap-x-8 items-center">
+                    <div className="flex flex-col items-center">
+                      <img src={currentWeatherData.conditionIcon} alt={currentWeatherData.conditionText} className="w-20 h-20" />
+                      <p className="text-gray-600 -mt-2">{currentWeatherData.conditionText}</p>
+                      <p className="text-6xl font-bold text-blue-600 mt-2">
+                        {units === 'celsius'
+                          ? `${Math.round(currentWeatherData.temperature_c)}°C`
+                          : `${Math.round(currentWeatherData.temperature_f)}°F`}
+                      </p>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-4 md:mt-0 space-y-2 text-center">
+                      <p>Feels like: {units === 'celsius' ? Math.round(currentWeatherData.feelsLike_c) : Math.round(currentWeatherData.feelsLike_f)}°</p>
+                      <p>Humidity: {currentWeatherData.humidity}%</p>
+                      <p>Wind: {units === 'celsius' ? `${Math.round(currentWeatherData.windSpeed_kph)} kph` : `${Math.round(currentWeatherData.windSpeed_mph)} mph`}</p>
+                    </div>
+                  </div>
+                  {/* Hourly Forecast */}
+                  <div className="w-full mt-6">
+                    <div className="flex space-x-4 overflow-x-auto pb-2">
+                      {currentWeatherData.hourlyForecast?.map((hourData) => (
+                        <div key={hourData.time} className="flex-shrink-0 flex flex-col items-center gap-y-1 p-2 rounded-lg bg-gray-50">
+                          <p className="text-xs font-medium text-gray-600">
+                            {new Date(hourData.time.replace(/-/g, '/')).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                          </p>
+                          <img src={hourData.condition.icon} alt={hourData.condition.text} className="w-8 h-8" />
+                          <p className="text-sm font-bold text-gray-800">
+                            {units === 'celsius' ? `${Math.round(hourData.temp_c)}°` : `${Math.round(hourData.temp_f)}°`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* 3-Day Forecast */}
+                  <div className="border-t border-gray-200 w-full mt-6 pt-4">
+                    <div className="flex justify-around text-sm">
+                      {currentWeatherData.forecast?.slice(1, 4).map((day) => (
+                        <div key={day.date} className="flex flex-col items-center gap-y-1">
+                          <p className="font-semibold text-gray-600">
+                            {new Date(day.date.replace(/-/g, '/')).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
+                          </p>
+                          <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
+                          <p className="text-gray-800">
+                            {units === 'celsius'
+                              ? `${Math.round(day.day.maxtemp_c)}° / ${Math.round(day.day.mintemp_c)}°`
+                              : `${Math.round(day.day.maxtemp_f)}° / ${Math.round(day.day.mintemp_f)}°`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               );

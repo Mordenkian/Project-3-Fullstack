@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const city = searchParams.get("q");
+  const days = searchParams.get("days");
 
   const apiKey = process.env.WEATHER_API_KEY;
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const url = `http://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${city}`;
+  const url = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=${days || 1}&aqi=no&alerts=no`;
 
   try {
     const res = await fetch(url, {
