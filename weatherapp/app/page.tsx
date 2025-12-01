@@ -51,6 +51,24 @@ interface SavedCity {
   lon?: number; // Optional longitude for current location
 }
 
+interface WeatherAPIResponse {
+  current: {
+    temp_c: number;
+    temp_f: number;
+    condition: {
+      text: string;
+      icon: string;
+    };
+    feelslike_c: number;
+    feelslike_f: number;
+    humidity: number;
+    wind_kph: number;
+    wind_mph: number;
+    last_updated_epoch: number;
+  };
+  forecast: { forecastday: ForecastDay[] };
+}
+
 export default function HomePage() {
   const [weatherData, setWeatherData] = useState<Record<string, WeatherData | null>>({});
   const [savedCities, setSavedCities] = useState<SavedCity[]>([]);
@@ -143,7 +161,7 @@ export default function HomePage() {
         // Use lat/lon for current location if available, otherwise use city name
         const query = city.lat && city.lon ? `${city.lat},${city.lon}` : city.name;
         // Request 4 days of forecast data (today + next 3 days)
-        const response = await axios.get(`/api/weather?q=${query}&days=4`);
+        const response = await axios.get<WeatherAPIResponse>(`/api/weather?q=${query}&days=4`);
 
         // Safely destructure and provide fallbacks
         const { current, forecast } = response.data;
@@ -159,7 +177,7 @@ export default function HomePage() {
         const tomorrowsHours = forecast.forecastday[1]?.hour || [];
 
         const upcomingHoursToday = todaysHours.filter(hour => {
-          const hourEpoch = new Date(hour.time.replace(/-/g, '/')).getTime() / 1000;
+          const hourEpoch = new Date(hour.time).getTime() / 1000;
           return hourEpoch > last_updated_epoch;
         });
 
@@ -273,7 +291,7 @@ export default function HomePage() {
                       {currentWeatherData.hourlyForecast?.map((hourData) => (
                         <div key={hourData.time} className="flex-shrink-0 flex flex-col items-center gap-y-1 p-2 rounded-lg bg-gray-50">
                           <p className="text-xs font-medium text-gray-600">
-                            {new Date(hourData.time.replace(/-/g, '/')).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                            {new Date(hourData.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
                           </p>
                           <img src={hourData.condition.icon} alt={hourData.condition.text} className="w-8 h-8" />
                           <p className="text-sm font-bold text-gray-800">
@@ -289,7 +307,7 @@ export default function HomePage() {
                       {currentWeatherData.forecast?.slice(1, 4).map((day) => (
                         <div key={day.date} className="flex flex-col items-center gap-y-1">
                           <p className="font-semibold text-gray-600">
-                            {new Date(day.date.replace(/-/g, '/')).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
+                            {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
                           </p>
                           <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
                           <p className="text-gray-800">
