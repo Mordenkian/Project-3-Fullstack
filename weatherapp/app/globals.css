@@ -5,7 +5,7 @@
 
 @layer base {
   body {
-    @apply bg-gray-50;
+    @apply bg-gradient-to-br from-sky-100 to-blue-200;
   }
 }
 
@@ -43,4 +43,13 @@
 
 .animate-fade-in-up {
   animation: fade-in-up 0.3s ease-out forwards;
+}
+
+/* For hiding scrollbars but keeping functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }

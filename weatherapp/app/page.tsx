@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getUserId } from "@/lib/getUserId";
 import DetailedForecastModal from "@/app/forecastmodal";
 import axios from "axios";
@@ -89,7 +89,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [units, setUnits] = useState<'celsius' | 'fahrenheit'>('celsius');
-  const [index, setIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedDay, setSelectedDay] = useState<ForecastDay | null>(null);
 
   // Effect to manage unit persistence in localStorage
@@ -180,13 +180,13 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchWeatherForCity = async () => {
-      if (savedCities.length === 0 || !savedCities[index]) return;
+      if (savedCities.length === 0 || !savedCities[currentIndex]) return;
 
-      const city = savedCities[index];
+      const city = savedCities[currentIndex];
       if (weatherData[city._id]) return; // Don't re-fetch if we already have it
 
       try {
-        // Use lat/lon for current location if available, otherwise use city name
+        // Use lat/lon for current location if available, otherwise, use city name
         const query = city.lat && city.lon ? `${city.lat},${city.lon}` : city.name;
         // Request 4 days of forecast data (today + next 3 days)
         const response = await axios.get<WeatherAPIResponse>(`/api/weather?q=${query}&days=4&aqi=yes`);
@@ -239,16 +239,20 @@ export default function HomePage() {
     };
 
     fetchWeatherForCity();
-  }, [index, savedCities]);
+  }, [currentIndex, savedCities]);
+
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   const handleNext = () => {
-    if (savedCities.length === 0) return;
-    setIndex((prevIndex) => (prevIndex + 1) % savedCities.length);
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: carouselRef.current.offsetWidth, behavior: 'smooth' });
+    }
   };
 
   const handlePrev = () => {
-    if (savedCities.length === 0) return;
-    setIndex((prevIndex) => (prevIndex - 1 + savedCities.length) % savedCities.length);
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: -carouselRef.current.offsetWidth, behavior: 'smooth' });
+    }
   };
 
   const getAqiInfo = (aqi: number): { text: string; color: string } => {
@@ -266,10 +270,28 @@ export default function HomePage() {
     if (uv <= 10) return "Very High"; return "Extreme";
   };
 
+  const isDay = (forecast: ForecastDay | undefined): boolean => {
+    if (!forecast) return true; // Default to day theme
+    const now = new Date();
+    const sunriseStr = forecast.astro.sunrise; // "06:30 AM"
+    const sunsetStr = forecast.astro.sunset; // "07:45 PM"
+
+    const [sunriseH, sunriseM, sunriseP] = sunriseStr.match(/(\d+):(\d+) (AM|PM)/)!.slice(1);
+    const [sunsetH, sunsetM, sunsetP] = sunsetStr.match(/(\d+):(\d+) (AM|PM)/)!.slice(1);
+
+    const sunriseHour = (parseInt(sunriseH) % 12) + (sunriseP === 'PM' ? 12 : 0);
+    const sunsetHour = (parseInt(sunsetH) % 12) + (sunsetP === 'PM' ? 12 : 0);
+
+    const sunrise = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sunriseHour, parseInt(sunriseM));
+    const sunset = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sunsetHour, parseInt(sunsetM));
+
+    return now >= sunrise && now < sunset;
+  };
+
   return (
-    <main className="flex flex-col items-center justify-center p-6 pt-20">
-      <div className="bg-white shadow-xl rounded-2xl w-full max-w-md md:max-w-2xl p-6 md:p-8 text-center">
-        <div className="flex justify-between items-center mb-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-6xl mx-auto text-center">
+        <div className="flex justify-center items-center mb-6 relative">
           <h1 className="text-3xl font-bold text-gray-800">Weather</h1>
           <div className="flex items-center border border-gray-300 rounded-full p-1 text-sm">
             <button
@@ -289,100 +311,121 @@ export default function HomePage() {
         {isLoading ? (
           <p>Loading locations...</p>
         ) : savedCities.length > 0 ? (
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-center w-full gap-4">
             <button onClick={handlePrev} aria-label="Previous city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
             </button>
-            {(() => {
-              const currentCityId = savedCities[index]._id;
-              const currentWeatherData = weatherData[currentCityId];
+            <div
+              ref={carouselRef}
+              className="flex gap-8 overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth w-full max-w-md md:max-w-2xl"
+              onScroll={(e) => {
+                const scrollLeft = e.currentTarget.scrollLeft;
+                const cardWidth = e.currentTarget.offsetWidth;
+                const newIndex = Math.round(scrollLeft / cardWidth);
+                if (newIndex !== currentIndex) {
+                  setCurrentIndex(newIndex);
+                }
+              }}
+            >
+              {savedCities.map((city) => {
+                const currentWeatherData = weatherData[city._id];
+                const dayTheme = isDay(currentWeatherData?.forecast?.[0]);
 
-              if (currentWeatherData === undefined) {
-                return <div className="w-48 h-48 flex items-center justify-center"><p>Loading...</p></div>;
-              }
-
-              if (currentWeatherData === null) {
-                return <div className="w-48 h-48 flex flex-col items-center justify-center"><h2 className="text-2xl font-semibold text-gray-800 truncate w-full">{savedCities[index].name}</h2><p>N/A</p></div>;
-              }
-
-              return (
-                <div className="flex flex-col items-center flex-1 mx-4 min-w-0">
-                  <div className="flex items-center justify-center gap-x-2 w-full min-h-[56px]">
-                    {savedCities[index]._id === "current-location" && (
+                return (
+                  <div
+                    key={city._id}
+                    className={`flex-shrink-0 w-full snap-center p-6 md:p-8 rounded-2xl shadow-xl transition-colors duration-500 ${dayTheme ? 'bg-white text-gray-800' : 'bg-blue-900 text-white'}`}
+                  >
+                    {currentWeatherData === undefined && <div className="h-[450px] flex items-center justify-center"><p>Loading...</p></div>}
+                    {currentWeatherData === null && (
+                      <div className="h-[450px] flex flex-col items-center justify-center">
+                        <h2 className={`text-2xl font-semibold ${dayTheme ? 'text-gray-800' : 'text-white'} truncate w-full`}>{city.name}</h2>
+                        <p>N/A</p>
+                      </div>
+                    )}
+                    {currentWeatherData && (
+                      <div className="flex flex-col items-center flex-1 min-w-0">
+                        {/* City Name and Location Icon */}
+                        <div className="flex items-center justify-center gap-x-2 w-full min-h-[56px]">
+                          {city._id === "current-location" && (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-gray-500 flex-shrink-0">
                         <path fillRule="evenodd" d="m9.69 18.933.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 0 0 .281-.14c.186-.1.4-.27.61-.474l.21-.203a.5.5 0 0 0-.753-.664l-.21.203c-.21.204-.423.375-.61.475a5.741 5.741 0 0 0-.281.14l-.018.008-.006.003Z" clipRule="evenodd" />
                         <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
                       </svg>
                     )}
-                    <h2 className="text-2xl font-semibold text-gray-800 break-words">{savedCities[index].name}</h2>
-                  </div>
-                  <div className="w-full grid grid-cols-1 md:grid-cols-2 md:gap-x-8 items-center">
-                    <div className="flex flex-col items-center">
-                      <img src={currentWeatherData.conditionIcon} alt={currentWeatherData.conditionText} className="w-20 h-20" />
-                      <p className="text-gray-600 -mt-2">{currentWeatherData.conditionText}</p>
-                      <p className="text-6xl font-bold text-blue-600 mt-2">
-                        {units === 'celsius'
-                          ? `${Math.round(currentWeatherData.temperature_c)}°C`
-                          : `${Math.round(currentWeatherData.temperature_f)}°F`}
-                      </p>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-4 md:mt-0 space-y-2 text-center">
-                      <p>Feels like: {units === 'celsius' ? Math.round(currentWeatherData.feelsLike_c) : Math.round(currentWeatherData.feelsLike_f)}°</p>
-                      <p>Humidity: {currentWeatherData.humidity}%</p>
-                      <p>Wind: {units === 'celsius' ? `${Math.round(currentWeatherData.windSpeed_kph)} kph` : `${Math.round(currentWeatherData.windSpeed_mph)} mph`}</p>
-                      <p>UV Index: {currentWeatherData.uv} ({getUvInfo(currentWeatherData.uv)})</p>
-                      <div className="flex items-center justify-center gap-x-2">
-                        <span>AQI: {getAqiInfo(currentWeatherData.aqi).text}</span>
-                        <span
-                          className={`inline-block w-3 h-3 rounded-full ${getAqiInfo(currentWeatherData.aqi).color}`}
-                        ></span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Hourly Forecast */}
-                  <div className="w-full mt-6">
-                    <div className="flex space-x-4 overflow-x-auto pb-2">
-                      {currentWeatherData.hourlyForecast?.map((hourData) => (
-                        <div key={hourData.time} className="flex-shrink-0 flex flex-col items-center gap-y-1 p-2 rounded-lg bg-gray-50">
-                          <p className="text-xs font-medium text-gray-600">
-                            {new Date(hourData.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
-                          </p>
-                          <img src={hourData.condition.icon} alt={hourData.condition.text} className="w-8 h-8" />
-                          <p className="text-sm font-bold text-gray-800">
-                            {units === 'celsius' ? `${Math.round(hourData.temp_c)}°` : `${Math.round(hourData.temp_f)}°`}
-                          </p>
+                        <h2 className={`text-2xl font-semibold ${dayTheme ? 'text-gray-800' : 'text-white'} break-words`}>{city.name}</h2>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* 3-Day Forecast */}
-                  <div className="border-t border-gray-200 w-full mt-6 pt-4">
-                    <div className="flex justify-around text-sm">
-                      {currentWeatherData.forecast?.slice(1, 3).map((day) => (
-                        <button
-                          key={day.date}
-                          onClick={() => setSelectedDay(day)}
-                          aria-label={`View detailed forecast for ${new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'long', timeZone: 'UTC' })}`}
-                          className="flex flex-col items-center gap-y-1 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-center"
-                        >
-                            <p className="font-semibold text-gray-600">
-                              {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
-                            </p>
-                            <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
-                            <p className="text-gray-800">
+                        {/* Main Weather Info */}
+                        <div className="w-full grid grid-cols-1 md:grid-cols-2 md:gap-x-8 items-center">
+                          <div className="flex flex-col items-center">
+                            <img src={currentWeatherData.conditionIcon} alt={currentWeatherData.conditionText} className="w-20 h-20" />
+                            <p className={`${dayTheme ? 'text-gray-600' : 'text-gray-300'} -mt-2`}>{currentWeatherData.conditionText}</p>
+                            <p className={`text-6xl font-bold ${dayTheme ? 'text-blue-600' : 'text-sky-400'} mt-2`}>
                               {units === 'celsius'
-                                ? `${Math.round(day.day.maxtemp_c)}° / ${Math.round(day.day.mintemp_c)}°`
-                                : `${Math.round(day.day.maxtemp_f)}° / ${Math.round(day.day.mintemp_f)}°`}
+                                ? `${Math.round(currentWeatherData.temperature_c)}°C`
+                                : `${Math.round(currentWeatherData.temperature_f)}°F`}
                             </p>
-                        </button>
-                      ))}
-                    </div>
+                          </div>
+                          <div className={`text-sm ${dayTheme ? 'text-gray-600' : 'text-gray-300'} mt-4 md:mt-0 space-y-2 text-center`}>
+                            <p>Feels like: {units === 'celsius' ? Math.round(currentWeatherData.feelsLike_c) : Math.round(currentWeatherData.feelsLike_f)}°</p>
+                            <p>Humidity: {currentWeatherData.humidity}%</p>
+                            <p>Wind: {units === 'celsius' ? `${Math.round(currentWeatherData.windSpeed_kph)} kph` : `${Math.round(currentWeatherData.windSpeed_mph)} mph`}</p>
+                            <p>UV Index: {currentWeatherData.uv} ({getUvInfo(currentWeatherData.uv)})</p>
+                            <div className="flex items-center justify-center gap-x-2">
+                              <span>AQI: {getAqiInfo(currentWeatherData.aqi).text}</span>
+                              <span
+                                className={`inline-block w-3 h-3 rounded-full ${getAqiInfo(currentWeatherData.aqi).color}`}
+                              ></span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Hourly Forecast */}
+                        <div className="w-full mt-6">
+                          <div className="flex space-x-4 overflow-x-auto pb-2">
+                            {currentWeatherData.hourlyForecast?.map((hourData) => (
+                              <div key={hourData.time} className={`flex-shrink-0 flex flex-col items-center gap-y-1 p-2 rounded-lg ${dayTheme ? 'bg-gray-50' : 'bg-blue-800'}`}>
+                                <p className={`text-xs font-medium ${dayTheme ? 'text-gray-600' : 'text-gray-300'}`}>
+                                  {new Date(hourData.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                                </p>
+                                <img src={hourData.condition.icon} alt={hourData.condition.text} className="w-8 h-8" />
+                                <p className={`text-sm font-bold ${dayTheme ? 'text-gray-800' : 'text-white'}`}>
+                                  {units === 'celsius' ? `${Math.round(hourData.temp_c)}°` : `${Math.round(hourData.temp_f)}°`}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* 3-Day Forecast */}
+                        <div className="border-t border-gray-200/50 w-full mt-6 pt-4">
+                          <div className="flex justify-around text-sm">
+                            {currentWeatherData.forecast?.slice(1, 3).map((day) => (
+                              <button
+                                key={day.date}
+                                onClick={() => setSelectedDay(day)}
+                                aria-label={`View detailed forecast for ${new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'long', timeZone: 'UTC' })}`}
+                                className={`flex flex-col items-center gap-y-1 p-2 rounded-lg ${dayTheme ? 'hover:bg-gray-100' : 'hover:bg-blue-800'} transition-colors w-full text-center`}
+                              >
+                                  <p className={`font-semibold ${dayTheme ? 'text-gray-600' : 'text-gray-300'}`}>
+                                    {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
+                                  </p>
+                                  <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
+                                  <p className={`${dayTheme ? 'text-gray-800' : 'text-white'}`}>
+                                    {units === 'celsius'
+                                      ? `${Math.round(day.day.maxtemp_c)}° / ${Math.round(day.day.mintemp_c)}°`
+                                      : `${Math.round(day.day.maxtemp_f)}° / ${Math.round(day.day.mintemp_f)}°`}
+                                  </p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })}
+            </div>
             <button onClick={handleNext} aria-label="Next city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
