@@ -41,6 +41,8 @@ interface WeatherData {
   windSpeed_mph: number;
   forecast: ForecastDay[];
   hourlyForecast: HourData[];
+  uv: number;
+  aqi: number;
 }
 
 interface SavedCity {
@@ -65,6 +67,10 @@ interface WeatherAPIResponse {
     wind_kph: number;
     wind_mph: number;
     last_updated_epoch: number;
+    uv: number;
+    air_quality: {
+      "us-epa-index": number;
+    };
   };
   forecast: { forecastday: ForecastDay[] };
 }
@@ -174,7 +180,7 @@ export default function HomePage() {
         // Use lat/lon for current location if available, otherwise use city name
         const query = city.lat && city.lon ? `${city.lat},${city.lon}` : city.name;
         // Request 4 days of forecast data (today + next 3 days)
-        const response = await axios.get<WeatherAPIResponse>(`/api/weather?q=${query}&days=4`);
+        const response = await axios.get<WeatherAPIResponse>(`/api/weather?q=${query}&days=4&aqi=yes`);
 
         // Safely destructure and provide fallbacks
         const { current, forecast } = response.data;
@@ -183,7 +189,7 @@ export default function HomePage() {
           throw new Error("Invalid data structure from weather API");
         }
 
-        const { temp_c, temp_f, condition, feelslike_c, feelslike_f, humidity, wind_kph, wind_mph, last_updated_epoch } = current;
+        const { temp_c, temp_f, condition, feelslike_c, feelslike_f, humidity, wind_kph, wind_mph, last_updated_epoch, uv, air_quality } = current;
 
         // Combine today's upcoming hours with tomorrow's hours for a full 24h forecast
         const todaysHours = forecast.forecastday[0]?.hour || [];
@@ -213,6 +219,8 @@ export default function HomePage() {
             windSpeed_mph: wind_mph,
             forecast: processedForecast,
             hourlyForecast: full24HourForecast,
+            uv: uv ?? 0, // Provide fallback for UV
+            aqi: air_quality?.["us-epa-index"] ?? 0, // Safely access AQI and provide fallback
           },
         }));
       } catch (err) {
@@ -232,6 +240,21 @@ export default function HomePage() {
   const handlePrev = () => {
     if (savedCities.length === 0) return;
     setIndex((prevIndex) => (prevIndex - 1 + savedCities.length) % savedCities.length);
+  };
+
+  const getAqiInfo = (aqi: number): { text: string; color: string } => {
+    if (aqi === 1) return { text: "Good", color: "bg-green-500" };
+    if (aqi === 2) return { text: "Moderate", color: "bg-yellow-500" };
+    if (aqi === 3) return { text: "Unhealthy for sensitive groups", color: "bg-orange-500" };
+    if (aqi === 4) return { text: "Unhealthy", color: "bg-red-500" };
+    if (aqi === 5) return { text: "Very Unhealthy", color: "bg-purple-500" };
+    if (aqi >= 6) return { text: "Hazardous", color: "bg-maroon-500" }; // A custom color might be needed
+    return { text: "Unknown", color: "bg-gray-400" };
+  };
+
+  const getUvInfo = (uv: number): string => {
+    if (uv <= 2) return "Low"; if (uv <= 5) return "Moderate"; if (uv <= 7) return "High";
+    if (uv <= 10) return "Very High"; return "Extreme";
   };
 
   return (
@@ -300,6 +323,13 @@ export default function HomePage() {
                       <p>Feels like: {units === 'celsius' ? Math.round(currentWeatherData.feelsLike_c) : Math.round(currentWeatherData.feelsLike_f)}°</p>
                       <p>Humidity: {currentWeatherData.humidity}%</p>
                       <p>Wind: {units === 'celsius' ? `${Math.round(currentWeatherData.windSpeed_kph)} kph` : `${Math.round(currentWeatherData.windSpeed_mph)} mph`}</p>
+                      <p>UV Index: {currentWeatherData.uv} ({getUvInfo(currentWeatherData.uv)})</p>
+                      <div className="flex items-center justify-center gap-x-2">
+                        <span>AQI: {getAqiInfo(currentWeatherData.aqi).text}</span>
+                        <span
+                          className={`inline-block w-3 h-3 rounded-full ${getAqiInfo(currentWeatherData.aqi).color}`}
+                        ></span>
+                      </div>
                     </div>
                   </div>
                   {/* Hourly Forecast */}

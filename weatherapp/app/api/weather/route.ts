@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const city = searchParams.get("q");
   const days = searchParams.get("days");
+  const aqi = searchParams.get("aqi"); // Read the 'aqi' parameter from the request
 
   const apiKey = process.env.WEATHER_API_KEY;
 
@@ -26,10 +27,17 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const url = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=${days || 1}&aqi=no&alerts=no`;
+  // Use URLSearchParams for cleaner and safer URL construction
+  const params = new URLSearchParams({
+    key: apiKey,
+    q: city,
+    days: days || '1',
+    aqi: aqi || 'no', // Use the 'aqi' param from the request, default to 'no'
+    alerts: 'no',
+  });
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(`http://api.weatherapi.com/v1/forecast.json?${params.toString()}`, {
       next: { revalidate: 600 }, // Cache the response for 10 minutes
     });
 
