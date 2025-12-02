@@ -244,14 +244,29 @@ export default function HomePage() {
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const handleNext = () => {
-    if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: carouselRef.current.offsetWidth, behavior: 'smooth' });
+    if (carouselRef.current && savedCities.length > 0) {
+      const cardWidth = carouselRef.current.offsetWidth;
+      if (currentIndex === savedCities.length - 1) {
+        // If at the last city, scroll to the beginning
+        carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        // Otherwise, scroll to the next city
+        carouselRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+      }
     }
   };
 
   const handlePrev = () => {
-    if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: -carouselRef.current.offsetWidth, behavior: 'smooth' });
+    if (carouselRef.current && savedCities.length > 0) {
+      const cardWidth = carouselRef.current.offsetWidth;
+      const maxScroll = (savedCities.length - 1) * cardWidth;
+      if (currentIndex === 0) {
+        // If at the first city, scroll to the end
+        carouselRef.current.scrollTo({ left: maxScroll, behavior: 'smooth' });
+      } else {
+        // Otherwise, scroll to the previous city
+        carouselRef.current.scrollBy({ left: -cardWidth, behavior: 'smooth' });
+      }
     }
   };
 
@@ -273,28 +288,11 @@ export default function HomePage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-6xl mx-auto text-center">
-        <div className="flex justify-center items-center mb-6 relative">
-          <h1 className="text-3xl font-bold text-gray-800">Weather</h1>
-          <div className="flex items-center border border-gray-300 rounded-full p-1 text-sm">
-            <button
-              onClick={() => setUnits('celsius')}
-              className={`px-3 py-1 rounded-full transition-colors ${units === 'celsius' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-            >
-              °C
-            </button>
-            <button
-              onClick={() => setUnits('fahrenheit')}
-              className={`px-3 py-1 rounded-full transition-colors ${units === 'fahrenheit' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-            >
-              °F
-            </button>
-          </div>
-        </div>
         {isLoading ? (
           <p>Loading locations...</p>
         ) : savedCities.length > 0 ? (
           <div className="flex items-center justify-center w-full gap-4">
-            <button onClick={handlePrev} aria-label="Previous city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
+            <button onClick={handlePrev} aria-label="Previous city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors disabled:opacity-50" disabled={savedCities.length <= 1}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
@@ -317,7 +315,7 @@ export default function HomePage() {
                 return (
                   <div
                     key={city._id}
-                    className="flex-shrink-0 w-full snap-center p-6 md:p-8 rounded-2xl shadow-xl bg-white text-gray-800"
+                    className="flex-shrink-0 w-full snap-center p-6 md:p-8 rounded-2xl shadow-xl bg-white text-gray-800 relative"
                   >
                     {currentWeatherData === undefined && <div className="h-[450px] flex items-center justify-center"><p>Loading...</p></div>}
                     {currentWeatherData === null && (
@@ -327,7 +325,21 @@ export default function HomePage() {
                       </div>
                     )}
                     {currentWeatherData && (
-                      <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="flex flex-col items-center flex-1 min-w-0">                        
+                        <div className="absolute top-4 right-4 flex items-center border border-gray-300 rounded-full p-1 text-sm">
+                          <button
+                            onClick={() => setUnits('celsius')}
+                            className={`px-3 py-1 rounded-full transition-colors ${units === 'celsius' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                          >
+                            °C
+                          </button>
+                          <button
+                            onClick={() => setUnits('fahrenheit')}
+                            className={`px-3 py-1 rounded-full transition-colors ${units === 'fahrenheit' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                          >
+                            °F
+                          </button>
+                        </div>
                         {/* City Name and Location Icon */}
                         <div className="flex items-center justify-center gap-x-2 w-full min-h-[56px]">
                           {city._id === "current-location" && (
@@ -407,7 +419,7 @@ export default function HomePage() {
                 );
               })}
             </div>
-            <button onClick={handleNext} aria-label="Next city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
+            <button onClick={handleNext} aria-label="Next city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors disabled:opacity-50" disabled={savedCities.length <= 1}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>

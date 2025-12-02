@@ -15,11 +15,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-gray-50">
       <body>
-        <header className="flex justify-between items-center px-8 py-4 bg-white shadow-sm">
-          <h1 className="text-xl font-semibold text-gray-800">
+        <header className="flex justify-center items-center px-8 py-4 bg-white shadow-sm relative">
+          <h1 className="text-3xl font-bold text-gray-800">
             Weather Finder
           </h1>
-          <nav className="flex gap-x-6">
+          <nav className="absolute right-8 flex gap-x-6">
             <Link href="/" className="text-gray-700 hover:text-blue-600 font-medium">
               Home
             </Link>
