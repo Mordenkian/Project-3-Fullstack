@@ -70,6 +70,7 @@ export default function SavedLocationsPage() {
       setSavedCities([...savedCities, response.data]); // Optimistically update UI
       setInputCity("");
       setSuggestions([]);
+      sessionStorage.setItem('citiesChanged', 'true'); // Set flag for home page
     } catch (error) {
       console.error("Could not save city:", error);
       alert("Failed to save city. It might already be saved.");
@@ -81,6 +82,7 @@ export default function SavedLocationsPage() {
     try {
       await axios.delete(`/api/cities`, { data: { cityId, userId } });
       setSavedCities(savedCities.filter((city) => city._id !== cityId)); // Optimistically update UI
+      sessionStorage.setItem('citiesChanged', 'true'); // Set flag for home page
     } catch (error) {
       console.error("Could not delete city:", error);
       alert("Failed to delete city.");

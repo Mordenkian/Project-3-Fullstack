@@ -96,6 +96,14 @@ export default function HomePage() {
     setUserId(id);
 
     const fetchInitialData = async () => {
+      const citiesHaveChanged = sessionStorage.getItem('citiesChanged');
+
+      // If we already have cities AND they haven't changed, skip the fetch.
+      if (savedCities.length > 0 && !citiesHaveChanged) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         const fetchCurrentLocation = new Promise<SavedCity>((resolve) => {
@@ -139,7 +147,12 @@ export default function HomePage() {
           fetchSavedCities,
         ]);
 
+        // Reset state before setting new data, especially after a change
+        setWeatherData({});
         setSavedCities([currentLocation, ...savedCitiesResponse.data]);
+
+        // After a successful fetch, clear the flag so we don't refetch again
+        if (citiesHaveChanged) sessionStorage.removeItem('citiesChanged');
       } catch (error) {
         console.error("Could not load initial data:", error);
       } finally {
@@ -245,7 +258,11 @@ export default function HomePage() {
           <p>Loading locations...</p>
         ) : savedCities.length > 0 ? (
           <div className="flex items-center justify-between w-full">
-            <button onClick={handlePrev} className="text-2xl font-bold text-blue-500 hover:text-blue-700 transition">⬅</button>
+            <button onClick={handlePrev} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
+            </button>
             {(() => {
               const currentCityId = savedCities[index]._id;
               const currentWeatherData = weatherData[currentCityId];
@@ -304,7 +321,7 @@ export default function HomePage() {
                   {/* 3-Day Forecast */}
                   <div className="border-t border-gray-200 w-full mt-6 pt-4">
                     <div className="flex justify-around text-sm">
-                      {currentWeatherData.forecast?.slice(1, 4).map((day) => (
+                      {currentWeatherData.forecast?.slice(1, 3).map((day) => (
                         <div key={day.date} className="flex flex-col items-center gap-y-1">
                           <p className="font-semibold text-gray-600">
                             {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
@@ -322,7 +339,11 @@ export default function HomePage() {
                 </div>
               );
             })()}
-            <button onClick={handleNext} className="text-2xl font-bold text-blue-500 hover:text-blue-700 transition">➡</button>
+            <button onClick={handleNext} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         ) : (
           <p className="text-gray-600 mt-4">No saved locations. Add one on the 'My Saved Places' page!</p>
