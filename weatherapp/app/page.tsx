@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getUserId } from "@/lib/getUserId";
+import DetailedForecastModal from "@/app/forecastmodal";
 import axios from "axios";
 
 interface HourData {
@@ -21,10 +22,17 @@ interface ForecastDay {
     mintemp_c: number;
     maxtemp_f: number;
     mintemp_f: number;
+    daily_chance_of_rain: number;
+    maxwind_kph: number;
+    maxwind_mph: number;
     condition: {
       icon: string;
       text: string;
     };
+  };
+  astro: {
+    sunrise: string;
+    sunset: string;
   };
   hour: HourData[];
 }
@@ -82,6 +90,7 @@ export default function HomePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [units, setUnits] = useState<'celsius' | 'fahrenheit'>('celsius');
   const [index, setIndex] = useState(0);
+  const [selectedDay, setSelectedDay] = useState<ForecastDay | null>(null);
 
   // Effect to manage unit persistence in localStorage
   useEffect(() => {
@@ -352,17 +361,17 @@ export default function HomePage() {
                   <div className="border-t border-gray-200 w-full mt-6 pt-4">
                     <div className="flex justify-around text-sm">
                       {currentWeatherData.forecast?.slice(1, 3).map((day) => (
-                        <div key={day.date} className="flex flex-col items-center gap-y-1">
-                          <p className="font-semibold text-gray-600">
-                            {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
-                          </p>
-                          <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
-                          <p className="text-gray-800">
-                            {units === 'celsius'
-                              ? `${Math.round(day.day.maxtemp_c)}° / ${Math.round(day.day.mintemp_c)}°`
-                              : `${Math.round(day.day.maxtemp_f)}° / ${Math.round(day.day.mintemp_f)}°`}
-                          </p>
-                        </div>
+                        <button key={day.date} onClick={() => setSelectedDay(day)} className="flex flex-col items-center gap-y-1 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-center">
+                            <p className="font-semibold text-gray-600">
+                              {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
+                            </p>
+                            <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
+                            <p className="text-gray-800">
+                              {units === 'celsius'
+                                ? `${Math.round(day.day.maxtemp_c)}° / ${Math.round(day.day.mintemp_c)}°`
+                                : `${Math.round(day.day.maxtemp_f)}° / ${Math.round(day.day.mintemp_f)}°`}
+                            </p>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -379,6 +388,14 @@ export default function HomePage() {
           <p className="text-gray-600 mt-4">No saved locations. Add one on the 'My Saved Places' page!</p>
         )}
       </div>
+
+      {selectedDay && (
+        <DetailedForecastModal
+          dayData={selectedDay}
+          onClose={() => setSelectedDay(null)}
+          units={units}
+        />
+      )}
     </main>
   );
 }
