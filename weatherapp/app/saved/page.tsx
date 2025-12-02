@@ -94,7 +94,14 @@ export default function SavedLocationsPage() {
       <h2 className="text-2xl font-bold mb-4 text-gray-800">Manage Places</h2>
       <form onSubmit={handleSave} className="relative flex gap-2 mb-6">
         <div className="flex-grow">
-          <input type="text" value={inputCity} onChange={(e) => setInputCity(e.target.value)} placeholder="Enter city..." className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <label htmlFor="city-input" className="sr-only">
+            Enter city
+          </label>
+          <input
+            id="city-input"
+            type="text" value={inputCity} onChange={(e) => setInputCity(e.target.value)} placeholder="Enter city..."
+            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
           {suggestions.length > 0 && (
             <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg max-h-60 overflow-y-auto">
               {suggestions.map((suggestion) => (

@@ -290,7 +290,7 @@ export default function HomePage() {
           <p>Loading locations...</p>
         ) : savedCities.length > 0 ? (
           <div className="flex items-center justify-between w-full">
-            <button onClick={handlePrev} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
+            <button onClick={handlePrev} aria-label="Previous city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
@@ -361,7 +361,12 @@ export default function HomePage() {
                   <div className="border-t border-gray-200 w-full mt-6 pt-4">
                     <div className="flex justify-around text-sm">
                       {currentWeatherData.forecast?.slice(1, 3).map((day) => (
-                        <button key={day.date} onClick={() => setSelectedDay(day)} className="flex flex-col items-center gap-y-1 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-center">
+                        <button
+                          key={day.date}
+                          onClick={() => setSelectedDay(day)}
+                          aria-label={`View detailed forecast for ${new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'long', timeZone: 'UTC' })}`}
+                          className="flex flex-col items-center gap-y-1 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-center"
+                        >
                             <p className="font-semibold text-gray-600">
                               {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
                             </p>
@@ -378,7 +383,7 @@ export default function HomePage() {
                 </div>
               );
             })()}
-            <button onClick={handleNext} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
+            <button onClick={handleNext} aria-label="Next city" className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
