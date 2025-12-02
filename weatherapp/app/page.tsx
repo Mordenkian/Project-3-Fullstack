@@ -270,24 +270,6 @@ export default function HomePage() {
     if (uv <= 10) return "Very High"; return "Extreme";
   };
 
-  const isDay = (forecast: ForecastDay | undefined): boolean => {
-    if (!forecast) return true; // Default to day theme
-    const now = new Date();
-    const sunriseStr = forecast.astro.sunrise; // "06:30 AM"
-    const sunsetStr = forecast.astro.sunset; // "07:45 PM"
-
-    const [sunriseH, sunriseM, sunriseP] = sunriseStr.match(/(\d+):(\d+) (AM|PM)/)!.slice(1);
-    const [sunsetH, sunsetM, sunsetP] = sunsetStr.match(/(\d+):(\d+) (AM|PM)/)!.slice(1);
-
-    const sunriseHour = (parseInt(sunriseH) % 12) + (sunriseP === 'PM' ? 12 : 0);
-    const sunsetHour = (parseInt(sunsetH) % 12) + (sunsetP === 'PM' ? 12 : 0);
-
-    const sunrise = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sunriseHour, parseInt(sunriseM));
-    const sunset = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sunsetHour, parseInt(sunsetM));
-
-    return now >= sunrise && now < sunset;
-  };
-
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-6xl mx-auto text-center">
@@ -331,17 +313,16 @@ export default function HomePage() {
             >
               {savedCities.map((city) => {
                 const currentWeatherData = weatherData[city._id];
-                const dayTheme = isDay(currentWeatherData?.forecast?.[0]);
 
                 return (
                   <div
                     key={city._id}
-                    className={`flex-shrink-0 w-full snap-center p-6 md:p-8 rounded-2xl shadow-xl transition-colors duration-500 ${dayTheme ? 'bg-white text-gray-800' : 'bg-blue-900 text-white'}`}
+                    className="flex-shrink-0 w-full snap-center p-6 md:p-8 rounded-2xl shadow-xl bg-white text-gray-800"
                   >
                     {currentWeatherData === undefined && <div className="h-[450px] flex items-center justify-center"><p>Loading...</p></div>}
                     {currentWeatherData === null && (
                       <div className="h-[450px] flex flex-col items-center justify-center">
-                        <h2 className={`text-2xl font-semibold ${dayTheme ? 'text-gray-800' : 'text-white'} truncate w-full`}>{city.name}</h2>
+                        <h2 className="text-2xl font-semibold text-gray-800 truncate w-full">{city.name}</h2>
                         <p>N/A</p>
                       </div>
                     )}
@@ -355,20 +336,20 @@ export default function HomePage() {
                         <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
                       </svg>
                     )}
-                        <h2 className={`text-2xl font-semibold ${dayTheme ? 'text-gray-800' : 'text-white'} break-words`}>{city.name}</h2>
+                        <h2 className="text-2xl font-semibold text-gray-800 break-words">{city.name}</h2>
                         </div>
                         {/* Main Weather Info */}
                         <div className="w-full grid grid-cols-1 md:grid-cols-2 md:gap-x-8 items-center">
                           <div className="flex flex-col items-center">
                             <img src={currentWeatherData.conditionIcon} alt={currentWeatherData.conditionText} className="w-20 h-20" />
-                            <p className={`${dayTheme ? 'text-gray-600' : 'text-gray-300'} -mt-2`}>{currentWeatherData.conditionText}</p>
-                            <p className={`text-6xl font-bold ${dayTheme ? 'text-blue-600' : 'text-sky-400'} mt-2`}>
+                            <p className="text-gray-600 -mt-2">{currentWeatherData.conditionText}</p>
+                            <p className="text-6xl font-bold text-blue-600 mt-2">
                               {units === 'celsius'
                                 ? `${Math.round(currentWeatherData.temperature_c)}°C`
                                 : `${Math.round(currentWeatherData.temperature_f)}°F`}
                             </p>
                           </div>
-                          <div className={`text-sm ${dayTheme ? 'text-gray-600' : 'text-gray-300'} mt-4 md:mt-0 space-y-2 text-center`}>
+                          <div className="text-sm text-gray-600 mt-4 md:mt-0 space-y-2 text-center">
                             <p>Feels like: {units === 'celsius' ? Math.round(currentWeatherData.feelsLike_c) : Math.round(currentWeatherData.feelsLike_f)}°</p>
                             <p>Humidity: {currentWeatherData.humidity}%</p>
                             <p>Wind: {units === 'celsius' ? `${Math.round(currentWeatherData.windSpeed_kph)} kph` : `${Math.round(currentWeatherData.windSpeed_mph)} mph`}</p>
@@ -385,12 +366,12 @@ export default function HomePage() {
                         <div className="w-full mt-6">
                           <div className="flex space-x-4 overflow-x-auto pb-2">
                             {currentWeatherData.hourlyForecast?.map((hourData) => (
-                              <div key={hourData.time} className={`flex-shrink-0 flex flex-col items-center gap-y-1 p-2 rounded-lg ${dayTheme ? 'bg-gray-50' : 'bg-blue-800'}`}>
-                                <p className={`text-xs font-medium ${dayTheme ? 'text-gray-600' : 'text-gray-300'}`}>
+                              <div key={hourData.time} className="flex-shrink-0 flex flex-col items-center gap-y-1 p-2 rounded-lg bg-gray-50">
+                                <p className="text-xs font-medium text-gray-600">
                                   {new Date(hourData.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
                                 </p>
                                 <img src={hourData.condition.icon} alt={hourData.condition.text} className="w-8 h-8" />
-                                <p className={`text-sm font-bold ${dayTheme ? 'text-gray-800' : 'text-white'}`}>
+                                <p className="text-sm font-bold text-gray-800">
                                   {units === 'celsius' ? `${Math.round(hourData.temp_c)}°` : `${Math.round(hourData.temp_f)}°`}
                                 </p>
                               </div>
@@ -398,20 +379,20 @@ export default function HomePage() {
                           </div>
                         </div>
                         {/* 3-Day Forecast */}
-                        <div className="border-t border-gray-200/50 w-full mt-6 pt-4">
+                        <div className="border-t border-gray-200 w-full mt-6 pt-4">
                           <div className="flex justify-around text-sm">
                             {currentWeatherData.forecast?.slice(1, 3).map((day) => (
                               <button
                                 key={day.date}
                                 onClick={() => setSelectedDay(day)}
                                 aria-label={`View detailed forecast for ${new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'long', timeZone: 'UTC' })}`}
-                                className={`flex flex-col items-center gap-y-1 p-2 rounded-lg ${dayTheme ? 'hover:bg-gray-100' : 'hover:bg-blue-800'} transition-colors w-full text-center`}
+                                className="flex flex-col items-center gap-y-1 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-center"
                               >
-                                  <p className={`font-semibold ${dayTheme ? 'text-gray-600' : 'text-gray-300'}`}>
+                                  <p className="font-semibold text-gray-600">
                                     {new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: 'short', timeZone: 'UTC' })}
                                   </p>
                                   <img src={day.day.condition.icon} alt={day.day.condition.text} className="w-8 h-8" />
-                                  <p className={`${dayTheme ? 'text-gray-800' : 'text-white'}`}>
+                                  <p className="text-gray-800">
                                     {units === 'celsius'
                                       ? `${Math.round(day.day.maxtemp_c)}° / ${Math.round(day.day.mintemp_c)}°`
                                       : `${Math.round(day.day.maxtemp_f)}° / ${Math.round(day.day.mintemp_f)}°`}
